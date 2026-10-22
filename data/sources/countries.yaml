@@ -1,0 +1,159 @@
+# Country sources registry — H-SRC-ES-UK.
+#
+# One entry per country the product may price. A country that is not here has
+# NO money figure (P0.8): the calculation still runs, the money block renders
+# `pending`. Every number below carries authority and publication, or is
+# `status: pending` and renders pending. Nothing here is rounded for display:
+# each value is copied unrounded from the source pinned under
+# contracts/fixtures/ (sha256-pinned by source-fixtures.test.ts).
+#
+# Carbon is LOCATION-BASED for every country (amendment A21, 21 Sept 2026):
+# direct emissions of the physical generation a panel displaces. Market-based
+# figures (CNMC residual mix) are notes, never the value.
+#
+# `tariff.period` is what the statistic DESCRIBES. `tariff.reviewBy` is when the
+# entry must be re-pulled. A period that has ended is normal for a semi-annual
+# statistic; a tariff past reviewBy renders stale and is never silently used.
+
+schema: 1
+
+countries:
+  - key: spain
+    # Keys the geocoder's `country` field is matched against, lowercased.
+    match: [spain, españa]
+    currency: EUR
+    buildingStandard: notApplied
+
+    carbonFactor:
+      # REE publishes one factor PER ELECTRIC SYSTEM. An address is mapped to a
+      # system from its ISO 3166-2 region code; the peninsular figure is never
+      # used for an island or for an address whose system cannot be determined.
+      systems:
+        peninsular:
+          status: current
+          value: 86.13556944796785 # 0.08613556944796785 tCO2eq/MWh x 1000, unrounded
+          unit: gCO2e/kWh
+          basis: generation
+          authority: Red Eléctrica de España (REE)
+          publication:
+            title: Emisiones y factor de emisión de CO2 eq. de la generación (Peninsular, annual)
+            url: https://apidatos.ree.es/es/datos/generacion/no-renovables-detalle-emisiones-CO2?start_date=2025-01-01T00:00&end_date=2025-12-31T23:59&time_trunc=year&geo_trunc=electric_system&geo_limit=peninsular&geo_ids=8741
+            published: "2026-05-11" # REData widget last-update 2026-05-11T21:41:15+02:00
+            retrieved: "2026-09-21"
+          activityYear: 2025
+          note: >-
+            Location-based, direct generation emissions, peninsular system only
+            (22,233,333.148 tCO2eq). REE's Nacional view reads 0.1084 tCO2eq/MWh
+            (29,526,035.9 t) because it includes the island systems' diesel and
+            gas turbines; that figure is NOT used for a mainland address.
+            Market-based alternative, not used: CNMC residual mix 257.712 g/kWh
+            (Circular 2/2021 art. 7.3, EtiquetadoRestante_2025.xls, 2025).
+        baleares:
+          status: pending
+          authority: Red Eléctrica de España (REE)
+          note: REE publishes a separate, higher factor for the Baleares system. Not yet pulled; never substitute the peninsular one.
+        canarias:
+          status: pending
+          authority: Red Eléctrica de España (REE)
+          note: REE publishes a separate, higher factor for the Canarias systems. Not yet pulled; never substitute the peninsular one.
+        ceuta:
+          status: pending
+          authority: Red Eléctrica de España (REE)
+          note: REE publishes a separate factor for Ceuta. Not yet pulled; never substitute the peninsular one.
+        melilla:
+          status: pending
+          authority: Red Eléctrica de España (REE)
+          note: REE publishes a separate factor for Melilla. Not yet pulled; never substitute the peninsular one.
+
+    tariff:
+      status: current
+      value: 0.2669
+      unit: perKWh
+      currency: EUR
+      taxBasis: all_taxes_included
+      authority: Eurostat
+      publication:
+        title: nrg_pc_204 — Electricity prices for household consumers, bi-annual data; band DC (2 500–4 999 kWh); all taxes and levies included; national currency
+        url: https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nrg_pc_204?format=JSON&lang=EN&geo=ES&geo=UK&nrg_cons=KWH2500-4999&currency=NAC&unit=KWH&tax=I_TAX&time=2025-S2
+        published: "2026-08-12"
+        retrieved: "2026-09-21"
+      period:
+        label: 2025-S2
+        start: "2025-07-01"
+        end: "2025-12-31"
+      reviewBy: "2027-02-12" # six months after Eurostat's 12 Aug 2026 update
+      note: A band-DC household average for the whole country, not any retailer's tariff. A user-typed tariff always wins.
+
+    installCost:
+      status: pending
+      authority: Unión Española Fotovoltaica (UNEF)
+      authorityType: industry
+      note: >-
+        No UNEF document stating a per-kWp price range was found on unef.es (searched
+        21 Sept 2026, see the ruling). The only place a 1,100-1,500 EUR per kWp range
+        appears is a secondary site quoting UNEF, which is not the source.
+        Stays pending until UNEF's own publication is located.
+
+  - key: united kingdom
+    match: [united kingdom, uk, great britain]
+    currency: GBP
+    buildingStandard: notApplied
+
+    carbonFactor:
+      systems:
+        gb:
+          status: current
+          value: 130.96 # 0.13096 kgCO2e/kWh x 1000, DESNZ 'UK electricity', 'Electricity generated', 2026
+          unit: gCO2e/kWh
+          basis: generation
+          authority: Department for Energy Security and Net Zero (DESNZ)
+          publication:
+            title: Greenhouse gas reporting — conversion factors 2026, full set, sheet 'UK electricity' (electricity generated)
+            url: https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2026
+            published: "2026-06-11"
+            retrieved: "2026-09-21"
+          activityYear: 2026
+          note: >-
+            Location-based. Transmission and distribution losses (0.01299
+            kgCO2e/kWh) are excluded, matching REE's direct-generation-only
+            factor. The 2026 edition folds a methodology change into the fall
+            from 0.17700, so it is not comparable year-on-year.
+
+    tariff:
+      status: pending
+      currency: GBP
+      authority: Eurostat
+      reason: >-
+        Eurostat nrg_pc_204 carries no UK observation after 2020-S1 (0.1927
+        GBP); 2025-S2 returns Spain only. Operator ruled 21 Sept 2026: the UK
+        tariff is pending, and Ofgem is a note, never the value.
+      note: >-
+        Not a value: Ofgem price cap 1 Oct – 31 Dec 2026 is 26.32 p/kWh ex-VAT
+        energy unit rate (standing charge 54.83 p/day, Direct Debit, GB
+        average; domestic electricity VAT-free 1 Oct 2026 – 31 Mar 2027; set
+        26 Aug 2026). Supplied by the operator, not fetched in this block.
+
+    installCost:
+      status: current
+      kind: banded
+      unit: perKW
+      currency: GBP
+      taxBasis: vat_where_applicable
+      authority: Department for Energy Security and Net Zero (DESNZ)
+      authorityType: government
+      publication:
+        title: Solar photovoltaic (PV) cost data — Average costs of small-scale solar PV, Total Installed Capacity (TIC), sheet 'Domestic costs (TIC)', domestic mean, 2025/26
+        url: https://www.gov.uk/government/statistics/solar-pv-cost-data
+        published: "2026-05-28"
+        retrieved: "2026-09-21"
+      edition: 2025/26 (MCS-registered installations April 2025 – March 2026; Great Britain, excl. Northern Ireland)
+      bands:
+        - { fromKw: 0, toKw: 4, value: 1954.53 }
+        - { fromKw: 4, toKw: 10, value: 1644.7 }
+      note: >-
+        TIC domestic MEAN, unrounded (the block's table rounded these to 1,955 and
+        1,645). Bands are 0–4 kW and 4–10 kW by total installed capacity. Cost
+        includes generation equipment, installation and grid connection and VAT
+        WHERE APPLICABLE (VAT rates vary over time). It excludes battery storage,
+        so it may not be paired with a battery. The DNC measure gives 2095.51
+        and 1785.16 £/kW; TIC matches a user's kWp and is used.

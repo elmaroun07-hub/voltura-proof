@@ -1,0 +1,147 @@
+/**
+ * Hsol;jul — irradiación solar media acumulada en el mes de julio [kWh/m²]
+ *
+ * Source: DA DB-HE/1 «Cálculo de parámetros característicos de la envolvente»,
+ *         Enero 2020, tabla 20 (peninsular/Baleares/Ceuta/Melilla) and tabla 21 (Canarias).
+ *         Ministerio de Transporte, Movilidad y Agenda Urbana — Código Técnico de la Edificación.
+ *
+ * Extracted from the official PDF by word geometry and independently cross-checked
+ * against a second extraction. All 279 cells agreed. No value here was typed by hand.
+ *
+ * ⚠️ ZONE CODES COLLIDE ACROSS ARCHIPELAGOS.
+ * Eleven codes appear in both tables with different values. Validated against
+ * climate-zones.json, exactly one of them is reachable from a real Spanish address:
+ *
+ *     C2 — peninsular south 88.17 vs canary south 55.33  (59.4% too high)
+ *
+ * It is reached by 8 of the 48 Canary province/altitude cells. Resolve the
+ * archipelago before the zone; a zone-only lookup is silently wrong there.
+ */
+
+export type Archipelago = 'peninsular' | 'canary';
+
+/** Compass codes as printed in the CTE (O = Oeste = West, SO = Suroeste, NO = Noroeste). */
+export type Orientation = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SO' | 'O' | 'NO';
+export type Surface = Orientation | 'horiz';
+export type IrradiationRow = Record<Surface, number>;
+
+export const SOLAR_IRRADIATION_JULY: Record<Archipelago, Record<string, IrradiationRow>> = {
+  // Tabla 20 — climas peninsulares, Islas Baleares, Ceuta y Melilla
+  peninsular: {
+    'A3': { horiz: 220.36, NE: 96.73, E: 127.81, SE: 117.82, S: 89.53, SO: 115.84, O: 124.7, NO: 94.3, N: 59.39 },
+    'A4': { horiz: 235.35, NE: 99.25, E: 132.86, SE: 123.7, S: 94.78, SO: 123.83, O: 133.97, NO: 100.69, N: 61.12 },
+    'B3': { horiz: 220.33, NE: 92.03, E: 121.85, SE: 114.45, S: 89.73, SO: 114.64, O: 122.02, NO: 92.07, N: 57.92 },
+    'B4': { horiz: 235.31, NE: 101.7, E: 135.64, SE: 125.09, S: 94.13, SO: 121.94, O: 131.14, NO: 98.48, N: 61.0 },
+    'C1': { horiz: 195.77, NE: 88.49, E: 114.47, SE: 106.12, S: 81.72, SO: 101.55, O: 108.06, NO: 84.0, N: 56.85 },
+    'C2': { horiz: 217.19, NE: 96.61, E: 128.05, SE: 117.89, S: 88.17, SO: 111.22, O: 118.78, NO: 90.17, N: 58.23 },
+    'C3': { horiz: 220.34, NE: 97.05, E: 128.62, SE: 118.69, S: 89.37, SO: 115.69, O: 125.22, NO: 95.24, N: 59.61 },
+    'C4': { horiz: 235.35, NE: 101.78, E: 136.41, SE: 126.01, S: 94.84, SO: 121.68, O: 130.08, NO: 97.16, N: 60.36 },
+    'D1': { horiz: 195.8, NE: 88.53, E: 114.54, SE: 106.15, S: 81.96, SO: 101.33, O: 107.19, NO: 82.96, N: 56.51 },
+    'D2': { horiz: 217.18, NE: 94.76, E: 125.48, SE: 116.31, S: 88.51, SO: 113.39, O: 121.59, NO: 92.18, N: 58.27 },
+    'D3': { horiz: 220.32, NE: 94.22, E: 124.81, SE: 116.03, S: 89.15, SO: 115.91, O: 125.24, NO: 94.95, N: 58.91 },
+    'E1': { horiz: 195.79, NE: 88.95, E: 114.88, SE: 106.34, S: 82.09, SO: 101.16, O: 106.71, NO: 82.58, N: 56.67 },
+  },
+  // Tabla 21 — climas de las Islas Canarias
+  canary: {
+    'A1': { horiz: 195.58, NE: 92.08, E: 107.59, SE: 86.64, S: 53.96, SO: 86.32, O: 106.2, NO: 90.43, N: 60.7 },
+    'A2': { horiz: 216.93, NE: 100.05, E: 119.62, SE: 95.52, S: 56.26, SO: 91.6, O: 113.03, NO: 94.66, N: 61.64 },
+    'A3': { horiz: 220.08, NE: 104.09, E: 123.24, SE: 96.75, S: 55.46, SO: 94.84, O: 119.85, NO: 101.22, N: 65.16 },
+    'A4': { horiz: 235.08, NE: 106.01, E: 127.09, SE: 100.74, S: 58.43, SO: 102.22, O: 129.54, NO: 108.0, N: 66.24 },
+    'α1': { horiz: 195.56, NE: 92.34, E: 108.38, SE: 87.67, S: 54.6, SO: 85.65, O: 104.9, NO: 89.43, N: 60.59 },
+    'α2': { horiz: 216.93, NE: 99.0, E: 117.97, SE: 94.19, S: 56.0, SO: 94.88, O: 119.03, NO: 99.82, N: 62.89 },
+    'α3': { horiz: 220.11, NE: 101.98, E: 121.5, SE: 96.44, S: 56.3, SO: 95.45, O: 119.73, NO: 100.47, N: 63.76 },
+    'B1': { horiz: 195.57, NE: 94.7, E: 111.24, SE: 89.32, S: 54.32, SO: 86.49, O: 107.33, NO: 92.0, N: 62.03 },
+    'B2': { horiz: 216.9, NE: 98.2, E: 116.52, SE: 92.9, S: 55.18, SO: 94.02, O: 118.23, NO: 99.5, N: 62.8 },
+    'B3': { horiz: 220.11, NE: 103.16, E: 122.46, SE: 96.54, S: 55.97, SO: 95.26, O: 120.03, NO: 101.0, N: 64.72 },
+    'B4': { horiz: 235.08, NE: 106.88, E: 128.05, SE: 101.19, S: 57.89, SO: 99.94, O: 126.41, NO: 105.8, N: 66.06 },
+    'C1': { horiz: 195.57, NE: 91.62, E: 107.19, SE: 86.49, S: 54.19, SO: 88.17, O: 109.31, NO: 92.94, N: 61.18 },
+    'C2': { horiz: 216.91, NE: 101.03, E: 119.95, SE: 94.85, S: 55.33, SO: 91.94, O: 114.83, NO: 96.7, N: 63.06 },
+    'C3': { horiz: 220.1, NE: 100.28, E: 119.36, SE: 95.02, S: 56.22, SO: 96.18, O: 120.49, NO: 100.72, N: 63.15 },
+    'C4': { horiz: 235.05, NE: 107.93, E: 129.02, SE: 101.38, S: 57.65, SO: 97.95, O: 122.21, NO: 101.72, N: 64.95 },
+    'D1': { horiz: 195.59, NE: 89.55, E: 105.74, SE: 86.9, S: 55.6, SO: 85.63, O: 103.96, NO: 88.3, N: 59.36 },
+    'D2': { horiz: 216.92, NE: 98.35, E: 116.78, SE: 93.15, S: 55.16, SO: 94.32, O: 118.89, NO: 100.17, N: 62.98 },
+    'D3': { horiz: 220.1, NE: 102.24, E: 121.33, SE: 95.77, S: 55.79, SO: 94.87, O: 118.9, NO: 99.71, N: 63.79 },
+    'E1': { horiz: 195.58, NE: 91.03, E: 106.12, SE: 85.63, S: 53.95, SO: 85.66, O: 105.32, NO: 89.87, N: 60.74 },
+  },
+};
+
+/**
+ * The two Canary provinces, spelled exactly as keyed in climate-zones.json.
+ *
+ * ⚠️ These use the INE inverted-article convention — 'Palmas, Las', NOT 'Las Palmas'.
+ * The same convention applies to 'Coruña, A', 'Rioja, La' and 'Balears, Illes'.
+ * A substring or natural-order match against 'Las Palmas' returns false and routes
+ * both Canary provinces through the peninsular table. Match exactly.
+ */
+export const CANARY_PROVINCES = ['Palmas, Las', 'Santa Cruz de Tenerife'] as const;
+
+export class MissingIrradiationError extends Error {}
+export class UnknownProvinceError extends Error {}
+
+/**
+ * Province → archipelago. Exact match against the climate-zones.json keys.
+ * Throws on an unrecognised province rather than assuming peninsular, because
+ * assuming peninsular is precisely the C2 bug.
+ */
+export function archipelagoForProvince(province: string, knownProvinces?: Iterable<string>): Archipelago {
+  if (knownProvinces) {
+    const known = new Set(knownProvinces);
+    if (!known.has(province)) {
+      throw new UnknownProvinceError(
+        `Unrecognised province: ${JSON.stringify(province)}. ` +
+        `Note the INE inverted-article spelling, e.g. 'Palmas, Las' not 'Las Palmas'.`,
+      );
+    }
+  }
+  return (CANARY_PROVINCES as readonly string[]).includes(province) ? 'canary' : 'peninsular';
+}
+
+/**
+ * Hsol;jul for one surface, in kWh/m².
+ * Throws rather than returning a fallback — a wrong irradiation value propagates
+ * silently through qsol;jul into a compliant/non-compliant verdict.
+ */
+export function getHsolJul(archipelago: Archipelago, zone: string, surface: Surface): number {
+  const table = SOLAR_IRRADIATION_JULY[archipelago];
+  if (!table) throw new MissingIrradiationError(`Unknown archipelago: ${archipelago}`);
+  const row = table[zone];
+  if (!row) {
+    const hint = zone === 'α4'
+      ? ' — the CTE publishes no Hsol;jul row for α4 (tabla 21 omits it, though tabla 15.b lists it).'
+      : ` — known zones for ${archipelago}: ${Object.keys(table).join(', ')}.`;
+    throw new MissingIrradiationError(`No Hsol;jul for zone ${zone}${hint}`);
+  }
+  const value = row[surface];
+  if (value === undefined) {
+    throw new MissingIrradiationError(`No Hsol;jul for surface ${surface} in ${archipelago} ${zone}`);
+  }
+  return value;
+}
+
+/**
+ * Compass bearing → CTE orientation, per DA DB-HE/1 figura 8.
+ *
+ * ⚠️ REFERENCE DIRECTION IS NORTH, NOT SOUTH.
+ * The CTE prints α0 = 0 for Norte and 162–198 for Sur, so α0 is an ordinary
+ * compass bearing measured clockwise from north:
+ *
+ *     0° = N     90° = E     180° = S     270° = O (Oeste/West)
+ *
+ * Feeding a south-referenced angle rotates every window by 180°: north facades
+ * are scored as south and vice versa. In the Canaries — where south is the
+ * *darkest* facade in July — that inverts the shading priority list outright.
+ *
+ * ⚠️ The CTE sectors are NOT uniform 45° bins. Sur spans 36°, Este spans 51°.
+ * Binning by round(bearing / 45) gives wrong orientations near every boundary.
+ */
+export function orientationFromAzimuth(bearingFromNorthDeg: number): Orientation {
+  const a = ((bearingFromNorthDeg % 360) + 360) % 360;
+  if (a < 22.5 || a >= 337.5) return 'N';
+  if (a < 60) return 'NE';
+  if (a < 111) return 'E';
+  if (a < 162) return 'SE';
+  if (a < 198) return 'S';
+  if (a < 249) return 'SO';
+  if (a < 300) return 'O';
+  return 'NO';
+}

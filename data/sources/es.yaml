@@ -1,0 +1,345 @@
+# Spain sources registry — H-SRC-ES, 15 Sept 2026.
+#
+# One entry per user-facing numeric constant that touches Spain. This file is
+# the only place any of these numbers may be declared. The resolver in
+# artifacts/api-server/src/lib/emissions/ reads it at startup and refuses to
+# emit a figure whose id is not present here with status: current.
+#
+# Field meaning, per entry:
+#   id                     stable identifier, referenced by code and tests
+#   value                  the number, in `unit` — null for a pending entry
+#   unit                   the value's unit — null for a pending entry
+#   basis                  what KIND of quantity this is (see below). Two
+#                          entries can carry the same country and year and
+#                          still be a 2.4x apart because they answer different
+#                          questions — basis is what keeps them from being
+#                          silently swapped for one another.
+#   authority              the body that published the figure
+#   document_id            the specific document/decision, so "authority" alone
+#                          is never the whole citation
+#   edition_date           when that document was published
+#   activity_year          the year the figure DESCRIBES (usually one year
+#                          behind edition_date — the label always lags)
+#   next_edition_expected  when a newer edition is due, so a figure can be
+#                          checked for staleness without re-deriving the answer
+#   path                   file:line (or a note) for where this id is consumed
+#   status                 current | superseded | pending
+#   supersedes             the id of the entry this one replaces, or null
+#   verified_on            the date this entry was checked against the primary
+#                          document itself, not a secondary summary
+#   notes                  free text — only where a bare number would mislead
+#
+# basis values in use here:
+#   supply_residual   — what a consumer with NO Guarantee of Origin actually
+#                       draws, i.e. the grid's leftover mix. THE DEFAULT for a
+#                       consumer-facing CO2-savings figure.
+#   generation        — the national generation mix average. Never a consumer
+#                       figure — context and comparison only. 258 vs 107 is a
+#                       2.4x spread for the same country, same year, both
+#                       official; using generation for a consumer overstates
+#                       their real saving.
+#   supply_attributed — a consumer ON a redeemed Guarantee of Origin. Not
+#                       automatically zero: es-carbon-supply-attributed-cogen-2025
+#                       is 302 g/kWh, dirtier than the no-GdO default.
+
+entries:
+  # ── Spain, electricity carbon intensity ──────────────────────────────────
+  - id: es-carbon-supply-residual-2025
+    value: 258
+    unit: gCO2eq/kWh
+    basis: supply_residual
+    authority: "CNMC (Comisión Nacional de los Mercados y la Competencia), Sala de Supervisión Regulatoria"
+    document_id: "Acuerdo GDO/DE/001/26 — Etiquetado de la electricidad relativo a la energía producida en el año 2025"
+    edition_date: "2026-04-28"
+    activity_year: 2025
+    next_edition_expected: "2027-05 (approximate — CNMC publishes the following year's label after retailer mixes are filed; corroborated independently by MITECO's Guía para el cálculo de la huella de carbono, May 2026 edition)"
+    path: "artifacts/api-server/src/lib/emissions/es.ts"
+    status: current
+    supersedes: es-carbon-supply-residual-2024-miteo
+    verified_on: "2026-09-15"
+    notes: >
+      Mix Residual Final — the generic retailer without Guarantees of Origin.
+      This is THE consumer default: a consumer whose retailer is unknown or
+      unattributed. The full per-retailer range in the same document's Anexo I
+      runs 0 to 259 g/kWh for the same country, same grid, same year — a
+      single constant is wrong against at least one real retailer no matter
+      which value is chosen. Per-retailer resolution is out of scope for this
+      block (H-SRC-ES scope fence): the shape below (basis, per-entity id) is
+      built so adding one is cheap later, not built now.
+
+  - id: es-carbon-supply-residual-2024-miteo
+    value: 283
+    unit: gCO2eq/kWh
+    basis: supply_residual
+    authority: "MITECO (Ministerio para la Transición Ecológica y el Reto Demográfico)"
+    document_id: "MITECO official workbook, revised 7 May 2026 — Mix sin GdO, series back to 2007"
+    edition_date: "2026-05-07"
+    activity_year: 2024
+    next_edition_expected: null
+    path: "superseded — was a bare literal at contracts/blocks/h1b.md:11 (0.283 kg CO2e/kWh), never landed in application code"
+    status: superseded
+    supersedes: null
+    verified_on: "2026-09-15"
+    notes: >
+      Documented by MITECO as 0.283 kg CO2e/kWh; recorded here in g/kWh
+      (283 g/kWh) for unit consistency with the rest of this registry — same
+      number, same source, unit restated only. This is the exact figure
+      H-SRC-ES exists to stop being quietly rolled forward: superseding it
+      with a bare 0.258 next year would reproduce the defect this block
+      removes. It stays in the registry, marked superseded, rather than being
+      deleted, so the history is queryable instead of living only in git log.
+
+  - id: es-carbon-generation-2025
+    value: 107
+    unit: gCO2eq/kWh
+    basis: generation
+    authority: "CNMC (Comisión Nacional de los Mercados y la Competencia), Sala de Supervisión Regulatoria"
+    document_id: "Acuerdo GDO/DE/001/26 — Etiquetado de la electricidad relativo a la energía producida en el año 2025"
+    edition_date: "2026-04-28"
+    activity_year: 2025
+    next_edition_expected: "2027-05 (approximate, see es-carbon-supply-residual-2025)"
+    path: "artifacts/api-server/src/lib/emissions/es.ts — resolvable, deliberately not wired to any consumer-facing figure"
+    status: current
+    supersedes: null
+    verified_on: "2026-09-15"
+    notes: >
+      National generation mix average. NEVER a consumer figure — comparison
+      and context only. The type system in es.ts prevents this basis from
+      reaching the same call site as es-carbon-supply-residual-2025 (Gate
+      AC4).
+
+  - id: es-carbon-supply-attributed-renewable-2025
+    value: 0
+    unit: gCO2eq/kWh
+    basis: supply_attributed
+    authority: "CNMC (Comisión Nacional de los Mercados y la Competencia), Sala de Supervisión Regulatoria"
+    document_id: "Acuerdo GDO/DE/001/26 — Etiquetado de la electricidad relativo a la energía producida en el año 2025"
+    edition_date: "2026-04-28"
+    activity_year: 2025
+    next_edition_expected: "2027-05 (approximate, see es-carbon-supply-residual-2025)"
+    path: "artifacts/api-server/src/lib/emissions/es.ts — resolvable, not wired to any endpoint (no retailer-attribution feature exists)"
+    status: current
+    supersedes: null
+    verified_on: "2026-09-15"
+    notes: "Renewable Guarantee of Origin redeemed against the supply. Genuinely 0 — unlike the cogeneration GdO below."
+
+  - id: es-carbon-supply-attributed-cogen-2025
+    value: 302
+    unit: gCO2eq/kWh
+    basis: supply_attributed
+    authority: "MITECO (Ministerio para la Transición Ecológica y el Reto Demográfico)"
+    document_id: "Guía para el cálculo de la huella de carbono, May 2026 edition"
+    edition_date: "2026-05-01"
+    activity_year: 2025
+    next_edition_expected: null
+    path: "artifacts/api-server/src/lib/emissions/es.ts — resolvable, not wired to any endpoint (no retailer-attribution feature exists)"
+    status: current
+    supersedes: null
+    verified_on: "2026-09-15"
+    notes: >
+      High-efficiency cogeneration GdO — NOT zero. The trap this entry exists
+      to name: "has a Guarantee of Origin" does not mean "zero carbon". The
+      CNMC label's own R2-239 (MOEVE GAS AND POWER, 100% cogeneration) reports
+      267 g/kWh for the same reason — dirtier than the no-GdO default of
+      258 g/kWh.
+
+  # ── Spain, radioactive waste (the CNMC label's other reported quantity) ──
+  - id: es-radioactive-waste-generic-2025
+    value: 951
+    unit: ug/kWh
+    basis: supply_residual
+    authority: "CNMC (Comisión Nacional de los Mercados y la Competencia), Sala de Supervisión Regulatoria"
+    document_id: "Acuerdo GDO/DE/001/26 — Etiquetado de la electricidad relativo a la energía producida en el año 2025"
+    edition_date: "2026-04-28"
+    activity_year: 2025
+    next_edition_expected: "2027-05 (approximate, see es-carbon-supply-residual-2025)"
+    path: null
+    status: current
+    supersedes: null
+    verified_on: "2026-09-15"
+    notes: >
+      Not yet consumed by any code path. Recorded for completeness because it
+      is the other half of the same CNMC label this block already reads —
+      capturing it now costs nothing and avoids a second document read later.
+      basis matches the generic no-GdO retailer default (supply_residual).
+
+  - id: es-radioactive-waste-national-2025
+    value: 464
+    unit: ug/kWh
+    basis: generation
+    authority: "CNMC (Comisión Nacional de los Mercados y la Competencia), Sala de Supervisión Regulatoria"
+    document_id: "Acuerdo GDO/DE/001/26 — Etiquetado de la electricidad relativo a la energía producida en el año 2025"
+    edition_date: "2026-04-28"
+    activity_year: 2025
+    next_edition_expected: "2027-05 (approximate, see es-carbon-supply-residual-2025)"
+    path: null
+    status: current
+    supersedes: null
+    verified_on: "2026-09-15"
+    notes: "Not yet consumed by any code path. basis matches the national generation average (generation)."
+
+  # ── Spain, municipality coordinates — data not yet in hand ───────────────
+  - id: es-municipality-coordinates
+    value: null
+    unit: null
+    basis: null
+    authority: "Instituto Geográfico Nacional (IGN)"
+    document_id: "Nomenclátor Geográfico de Municipios y Entidades de Población (NGMEP)"
+    edition_date: "2026-03-31"
+    activity_year: null
+    next_edition_expected: null
+    path: null
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: >
+      Licence equivalent to CC BY 4.0, permitting commercial use with
+      attribution to IGN. The dataset carries its own per-row ORIGENCOOR
+      quality flag, including "En estudio" = approximate, correctness not
+      guaranteed. The CSVs have not been downloaded — this row exists so the
+      gap is reported as pending rather than silently missing.
+      AXIS-ORDER WARNING for whoever fills this in: the NGMEP memoria
+      describes ORIGENCOOR as [longitud, latitud] under MUNICIPIOS and as
+      [latitud, longitud] under ENTIDADES and EATIMS — same field, opposite
+      order, in the same document. Assume nothing; verify against a known
+      town on first load.
+
+  # ── Every other unsourced constant already on the defect register ────────
+  # status: pending, no value claimed, so the machine can count them. None of
+  # these are touched by this block's code changes — they are catalogued here
+  # so a future block has one list to work from instead of re-discovering them
+  # by grep.
+  - id: es-const-system-efficiency
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/api-server/src/routes/routes.ts:895 (SYSTEM_EFFICIENCY = 0.78)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: "Inverter/cable/soiling/temperature-derating composite, unsourced."
+
+  - id: es-const-orientation-factors
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/api-server/src/routes/routes.ts:61 (orientationFactor: south 1.0, east/west 0.87, north 0.70)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: null
+
+  - id: es-const-tilt-penalty
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/api-server/src/routes/routes.ts:63-66 (optimal tilt 35 degrees, 0.003/degree penalty, 0.4 floor)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: null
+
+  - id: es-const-consumption-coefficients
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/api-server/src/routes/routes.ts:27-30,43-57 (MONTHLY_CONSUMPTION_WEIGHTS, CONSUMPTION_HOURLY_PROFILE, mlPredictConsumption coefficients)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: null
+
+  - id: es-const-inflation
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/api-server/src/routes/routes.ts:949 (INFLATION = 0.015, 1.5% annual electricity price inflation)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: null
+
+  - id: es-const-trees-divisor
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/api-server/src/routes/routes.ts:806; artifacts/green-energy-calculator/src/components/calculator/ResultsDisplay.tsx:46 (co2Reduction / 20 = trees/year)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: null
+
+  - id: es-const-export-factor
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/api-server/src/routes/routes.ts:930 (annualSavingsEur * 0.1, surplus/export value estimate)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: null
+
+  - id: es-const-pv-upsizing
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/api-server/src/routes/routes.ts:934 (recommended pvWattage * 1.5 upsizing rule)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: null
+
+  - id: es-const-default-tariff
+    value: null
+    unit: null
+    basis: null
+    authority: null
+    document_id: null
+    edition_date: null
+    activity_year: null
+    next_edition_expected: null
+    path: "artifacts/green-energy-calculator/src/lib/api.ts:8; artifacts/green-energy-calculator/src/components/calculator/CalculatorForm.tsx:26; artifacts/api-server/src/routes/routes.ts:742 (0.25 EUR/kWh default/back-computed tariff)"
+    status: pending
+    supersedes: null
+    verified_on: null
+    notes: null
