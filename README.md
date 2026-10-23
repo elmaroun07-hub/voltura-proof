@@ -2,6 +2,8 @@
 
 These are three test suites copied byte-for-byte from Voltura's private production repo at commit `a15dd1d` (production since 21 Oct 2026), with the code they run. The full repo is private.
 
+The 57 code and data files are byte-identical to `a15dd1d`. The config files (`package.json`, `tsconfig.json`, `tsconfig.base.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.gitignore`, `.gitattributes`) were written for this repo. Comments in five files refer to documents in the private repo (`contracts/…`); those documents are not included.
+
 ## Run
 
 Node 24, pnpm 11:
@@ -27,7 +29,11 @@ https://voltura-web.onrender.com (Córdoba screening at `/cribado`).
 
 ## Data credits
 
-OpenStreetMap contributors (ODbL) for the Nominatim responses; NASA POWER.
+- OpenStreetMap contributors (ODbL): Nominatim responses in the test fixture.
+- NASA POWER: irradiance and temperature responses in the test fixture.
+- Red Eléctrica de España (REE), Eurostat, Unión Española Fotovoltaica (UNEF), Department for Energy Security and Net Zero (DESNZ), Comisión Nacional de los Mercados y la Competencia (CNMC), Ministerio para la Transición Ecológica y el Reto Demográfico (MITECO), Instituto Geográfico Nacional (IGN): figures in `data/sources/`, each entry naming its source.
+- Código Técnico de la Edificación, DB-HE (Ministerio de Transporte, Movilidad y Agenda Urbana): tables in `lib/cte/src/`.
+- MITECO, Estrategia Nacional contra la Pobreza Energética 2026–2030: vocabulary in `lib/i18n/src/vocabulary.ts`.
 
 ## License
 
