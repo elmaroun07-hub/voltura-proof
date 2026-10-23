@@ -9,7 +9,6 @@
   },
   "scripts": {
     "test": "vitest run --exclude 'src/**/*.integration.test.ts'",
-    "test:integration": "vitest run src/db",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
