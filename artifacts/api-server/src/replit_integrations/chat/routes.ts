@@ -1,7 +1,9 @@
 import type { Express, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
+import { z } from "zod/v3";
 import { chatStorage } from "./storage";
 import { getLlmClient, llmModel } from "../../lib/llm";
+import { clientKey } from "../../lib/client-key";
 import { FACTS_BY_LOCALE } from "./facts";
 import { requestLocale, serverCatalog, serverT, type Locale } from "../../i18n";
 
@@ -46,20 +48,38 @@ import { requestLocale, serverCatalog, serverT, type Locale } from "../../i18n";
 // sentences without the country list. A question about whether Voltura does
 // or claims something is now said outright to be in scope, and the carbon
 // copy rule covers the whole entry.
+//
+// H-ASST-QUOTA (operator ruling, 23 Oct 2026): shorter prompt. Removed, in both
+// languages, the "Context" paragraph (what users typically entered - the model
+// is told nothing it needs from it) and the sentence "Never describe a feature,
+// calculation or output that is not on this list as part of Voltura", which
+// repeats the rule that describes features only with the facts and adds no
+// detail. Every fact sentence and every pinned rule is unchanged.
 const OUT_OF_SCOPE: Readonly<Record<Locale, string>> = {
   es: serverCatalog.es["chat.outOfScope"],
   en: serverCatalog.en["chat.outOfScope"],
 };
 
+// H-ASST-ACC5 (operator ruling, 23 Oct 2026, "Fix both slips"). Live at
+// 36457ba: (166) asked whether Voltura complies with the EU AI Act, the Spanish
+// answer said it does not - the same slip as ACC4's 135, from a rule the model
+// had to put in its own words. The answer is now one catalog sentence to copy,
+// as the out-of-scope answer is, which has come back exact in every probe.
+// (162) a Spanish summary said Voltura computes nothing outside the Calculator,
+// reading "you compute nothing yourself" as being about Voltura; the guideline
+// now names the Assistant and says where Voltura computes.
+const LAW_ANSWER: Readonly<Record<Locale, string>> = {
+  es: serverCatalog.es["chat.lawAnswer"],
+  en: serverCatalog.en["chat.lawAnswer"],
+};
+
 export const SYSTEM_PROMPTS: Readonly<Record<Locale, string>> = {
   en: `You are Voltura's Energy Assistant. You answer only questions about what Voltura does.
-
-Context: Users have typically run a solar and battery savings calculation (location, annual electricity use, PV size in watts, battery capacity in kWh, and optionally their tariff and installation cost) and want to know what Voltura does, how it works, or what its results mean.
 
 What Voltura does - the complete list:
 ${FACTS_BY_LOCALE.en.map((f) => `- ${f.text}`).join("\n")}
 
-When asked what Voltura is or does, describe it from this list. If the user asks whether Voltura does something that is not on this list, say plainly that Voltura does not do it. Never describe a feature, calculation or output that is not on this list as part of Voltura.
+When asked what Voltura is or does, describe it from this list. If the user asks whether Voltura does something that is not on this list, say plainly that Voltura does not do it.
 
 A question asking whether Voltura does, computes, shows, offers or claims something is always a question about what Voltura does: answer it, even when the answer is no. It never gets the out-of-scope answer below.
 
@@ -75,16 +95,14 @@ Guidelines:
 - When sizing advice is requested, say that Voltura's AI Optimizer computes a recommended size, and give no sizing of your own.
 - The battery's round-trip efficiency is an input the user sets, from 50% to 100% (90% by default).
 - Voltura shows money in the country's own currency: EUR for Spain, GBP for the UK. Use metric units.
-- You compute nothing yourself: for figures, the user runs a calculation in the Calculator.
-- Never claim that Voltura meets any law, regulation or standard. If asked whether it does, say Voltura makes no such claim; that question is about Voltura, so it never gets the out-of-scope answer.`,
+- You, the Assistant, compute no figures yourself: for figures, the user runs the Calculator or the AI Optimizer, where Voltura computes them.
+- Never say that Voltura meets, or does not meet, any law, regulation or standard. If asked whether it does, answer with exactly this sentence and nothing else: "${LAW_ANSWER.en}" That question is about Voltura, so it never gets the out-of-scope answer.`,
   es: `Usted es el Asistente energético de Voltura. Solo responde preguntas sobre lo que hace Voltura.
-
-Contexto: normalmente, el usuario ha hecho un cálculo de ahorro solar y con batería (ubicación, consumo eléctrico anual, potencia FV en vatios, capacidad de la batería en kWh y, si quiere, su tarifa y el coste de instalación) y quiere saber qué hace Voltura, cómo funciona o qué significan sus resultados.
 
 Lo que hace Voltura - la lista completa:
 ${FACTS_BY_LOCALE.es.map((f) => `- ${f.text}`).join("\n")}
 
-Cuando le pregunten qué es o qué hace Voltura, descríbalo a partir de esta lista. Si el usuario pregunta si Voltura hace algo que no está en esta lista, diga claramente que Voltura no lo hace. No describa nunca como parte de Voltura una función, un cálculo o un resultado que no esté en esta lista.
+Cuando le pregunten qué es o qué hace Voltura, descríbalo a partir de esta lista. Si el usuario pregunta si Voltura hace algo que no está en esta lista, diga claramente que Voltura no lo hace.
 
 Una pregunta sobre si Voltura hace, calcula, muestra, ofrece o afirma algo es siempre una pregunta sobre lo que hace Voltura: respóndala, aunque la respuesta sea no. Nunca recibe la respuesta de fuera de ámbito de más abajo.
 
@@ -100,8 +118,8 @@ Pautas:
 - Cuando le pidan consejo sobre el dimensionamiento, diga que el Optimizador IA de Voltura calcula un tamaño recomendado, y no dé ningún dimensionamiento propio.
 - La eficiencia de ida y vuelta de la batería es un dato que fija el usuario, del 50 % al 100 % (90 % por defecto).
 - Voltura muestra el dinero en la moneda de cada país: EUR para España, GBP para el Reino Unido. Use unidades métricas.
-- Usted no calcula nada: para obtener cifras, el usuario hace un cálculo en la Calculadora.
-- No afirme nunca que Voltura se ajusta a alguna ley, reglamento o norma. Si le preguntan si lo hace, diga que Voltura no hace tal afirmación; esa pregunta trata de Voltura, así que nunca recibe la respuesta de fuera de ámbito.`,
+- Usted, el Asistente, no calcula ninguna cifra: para obtener cifras, el usuario usa la Calculadora o el Optimizador IA, donde Voltura las calcula.
+- No diga nunca que Voltura se ajusta, o que no se ajusta, a alguna ley, reglamento o norma. Si le preguntan si lo hace, responda exactamente con esta frase y nada más: "${LAW_ANSWER.es}" Esa pregunta trata de Voltura, así que nunca recibe la respuesta de fuera de ámbito.`,
 };
 
 /**
@@ -135,16 +153,51 @@ function notFound(req: Request, res: Response) {
 }
 
 /**
- * The other paid route: every message is a streamed Mistral completion. Higher
- * than the optimizer because a real conversation is many turns, still far below
- * what a script would do. Keyed on IP by the library default.
+ * The other model route: every message is a streamed completion from the
+ * configured provider (Groq since 10 Sept 2026). Keyed by clientKey (H-D17),
+ * which does not depend on Render's unpublished proxy hop count.
+ *
+ * H-ASST-QUOTA (operator ruling, 23 Oct 2026): 5 per 15 minutes, was 20. The
+ * Assistant and Optimizer share Groq's free quota for the whole site (on
+ * gpt-oss-120b: 1,000 requests and 200,000 tokens a day, 30 requests and 8,000
+ * tokens a minute), so every message one visitor sends is taken from everyone.
  */
+export const MESSAGES_PER_WINDOW = 5;
+
 const messageLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20,
+  limit: MESSAGES_PER_WINDOW,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  keyGenerator: clientKey,
   message: (req: Request) => ({ error: serverT(requestLocale(req))("chat.rateLimited") }),
+});
+
+/**
+ * H-D17: creating a conversation is one database insert per request and had no
+ * limit at all, so a script could add rows until the database filled. A reader
+ * opens a handful of chats; ten in a quarter hour is far above that.
+ */
+const createLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: clientKey,
+  message: (req: Request) => ({ error: serverT(requestLocale(req))("chat.createRateLimited") }),
+});
+
+/** H-D17: a title was stored at whatever length the body carried. Optional;
+ *  absent means the default title, as before. */
+export const MAX_TITLE_CHARS = 200;
+const createBody = z.object({ title: z.string().max(MAX_TITLE_CHARS).optional() });
+
+/** H-D17: a message was stored and sent to the model at whatever length and
+ *  type the body carried, and every later turn resends it with the history. */
+export const MAX_MESSAGE_CHARS = 4000;
+const messageBody = z.object({
+  // Stored exactly as sent; the trim only decides whether there is any text.
+  content: z.string().max(MAX_MESSAGE_CHARS).refine((s) => s.trim().length > 0),
 });
 
 export function registerChatRoutes(app: Express): void {
@@ -182,12 +235,16 @@ export function registerChatRoutes(app: Express): void {
   });
 
   // Create new conversation
-  app.post("/api/conversations", async (req: Request, res: Response) => {
+  app.post("/api/conversations", createLimiter, async (req: Request, res: Response) => {
     try {
       const sessionId = requireSessionId(req, res);
       if (!sessionId) return;
 
-      const { title } = req.body;
+      const parsed = createBody.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: serverT(requestLocale(req))("chat.titleInvalid", { max: MAX_TITLE_CHARS }) });
+      }
+      const { title } = parsed.data;
       const conversation = await chatStorage.createConversation(title || serverT(requestLocale(req))("chat.defaultTitle"), sessionId);
       return res.status(201).json(conversation);
     } catch (error) {
@@ -227,7 +284,12 @@ export function registerChatRoutes(app: Express): void {
         return notFound(req, res);
       }
 
-      const { content } = req.body;
+      // Checked before anything is stored or sent to the model.
+      const parsed = messageBody.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: serverT(requestLocale(req))("chat.contentInvalid", { max: MAX_MESSAGE_CHARS }) });
+      }
+      const { content } = parsed.data;
 
       // Save user message
       await chatStorage.createMessage(conversationId, "user", content);

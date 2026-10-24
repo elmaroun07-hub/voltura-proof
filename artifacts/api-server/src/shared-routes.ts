@@ -303,7 +303,9 @@ export const api = {
         energyPattern: z
           .array(z.number().min(0, 'an hourly weight cannot be negative'))
           .length(24, 'energyPattern must carry one weight per hour of the day'),
-        location: z.string(),
+        // H-D17: same cap as calculationInputSchema.location - it reaches the
+        // same geocoder.
+        location: z.string().max(200),
         // The magnitude, and it is REQUIRED. There is no default: a missing
         // usage is a 400, never a substituted 5,000 (G5, P2). Bounds match
         // `calculationInputSchema.energyUsage` so the two routes cannot

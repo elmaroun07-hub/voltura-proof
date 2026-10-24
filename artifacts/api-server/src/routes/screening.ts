@@ -19,7 +19,9 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
+import pLimit from "p-limit";
 import type { Pool } from "pg";
+import { clientKey } from "../lib/client-key";
 import {
   AGE_FILTERS,
   ScreeningNotLoaded,
@@ -106,9 +108,66 @@ export function toCsv(rows: readonly PortfolioRow[], t: ServerTranslate): string
   return "﻿" + lines.join("\r\n") + "\r\n";
 }
 
-export function createScreeningRouter(pool: Pool): IRouter {
+/**
+ * H-D17B. Measured live on 23 Oct 2026: /summary took 2.7 s and /buildings
+ * 1.8–3.5 s per request, with no limit. These queries share one database pool
+ * (pg's default, 10 connections) with calculations and chat, so a script
+ * firing them in parallel could stall every route at once. Three guards:
+ *
+ * - SCREENING_PER_MINUTE requests per client per minute on every screening
+ *   route. The page makes three on load and one per filter or page change.
+ * - At most SCREENING_CONCURRENCY screening requests use the database at once,
+ *   whoever sends them, so the rest of the pool stays free for calculations and
+ *   chat. Beyond SCREENING_MAX_QUEUE waiting, a typed 503 answers at once
+ *   rather than letting requests pile up in memory.
+ * - The municipality list and a municipality's summary are kept for
+ *   SCREENING_CACHE_MS. They change only when a load runs (h3-load, by hand),
+ *   so after a load the old figures can show for up to that long.
+ */
+export const SCREENING_PER_MINUTE = 30;
+export const SCREENING_CONCURRENCY = 2;
+export const SCREENING_MAX_QUEUE = 20;
+export const SCREENING_CACHE_MS = 5 * 60 * 1000;
+
+class ScreeningBusy extends Error {}
+
+export function createScreeningRouter(pool: Pool, opts: { now?: () => number } = {}): IRouter {
   const router: IRouter = Router();
-  const exportLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false });
+  const now = opts.now ?? Date.now;
+  // H-D17: keyed by clientKey, which does not depend on Render's unpublished
+  // proxy hop count. Proven per client on this route live, 23 Oct 2026.
+  const exportLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: "draft-7", legacyHeaders: false, keyGenerator: clientKey });
+  router.use(
+    "/api/screening",
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: SCREENING_PER_MINUTE,
+      standardHeaders: "draft-7",
+      legacyHeaders: false,
+      keyGenerator: clientKey,
+      message: (req: Request) => ({ code: "rate_limited", message: serverT(requestLocale(req))("error.screeningRateLimited") }),
+    }),
+  );
+
+  const gate = pLimit(SCREENING_CONCURRENCY);
+  const cache = new Map<string, { at: number; value: Promise<unknown> }>();
+  /** A cached result if fresh; else computes it inside the gate. The promise is
+   *  stored, so requests arriving while it computes share one query. A failure
+   *  is dropped from the cache, so "not loaded" is answered fresh every time. */
+  function cached<T>(key: string, compute: () => Promise<T>): Promise<T> {
+    const hit = cache.get(key);
+    if (hit && now() - hit.at < SCREENING_CACHE_MS) return hit.value as Promise<T>;
+    const value = gated(compute);
+    cache.set(key, { at: now(), value });
+    value.catch(() => {
+      if (cache.get(key)?.value === value) cache.delete(key);
+    });
+    return value;
+  }
+  function gated<T>(work: () => Promise<T>): Promise<T> {
+    if (gate.pendingCount >= SCREENING_MAX_QUEUE) throw new ScreeningBusy();
+    return gate(work);
+  }
 
   const handle =
     (fn: (req: Request, res: Response, t: ServerTranslate) => Promise<void>) => async (req: Request, res: Response) => {
@@ -117,7 +176,10 @@ export function createScreeningRouter(pool: Pool): IRouter {
         if ("ine" in req.params && !INE.test(routeParam(req, "ine"))) throw new BadParam("ine");
         await fn(req, res, t);
       } catch (err) {
-        if (err instanceof BadParam) {
+        if (err instanceof ScreeningBusy) {
+          res.setHeader("Retry-After", "10");
+          res.status(503).json({ code: "screening_busy", message: t("error.screeningBusy") });
+        } else if (err instanceof BadParam) {
           res.status(400).json({ code: "bad_param", param: err.param, message: t("error.screeningBadParam", { param: err.param }) });
         } else if (err instanceof ScreeningNotLoaded) {
           res.status(404).json({ code: "screening_not_loaded", message: t("error.screeningNotLoaded", { ine: err.ineMunicipality }) });
@@ -131,7 +193,7 @@ export function createScreeningRouter(pool: Pool): IRouter {
   router.get(
     "/api/screening/municipalities",
     handle(async (_req, res) => {
-      res.json({ municipalities: await listMunicipalities(pool) });
+      res.json({ municipalities: await cached("municipalities", () => listMunicipalities(pool)) });
     }),
   );
 
@@ -142,7 +204,8 @@ export function createScreeningRouter(pool: Pool): IRouter {
       const limit = intParam(req.query.limit, "limit", 50, MAX_LIMIT);
       const offset = intParam(req.query.offset, "offset", 0, Number.MAX_SAFE_INTEGER);
       if (limit === 0) throw new BadParam("limit");
-      res.json(await listBuildings(pool, routeParam(req, "ine"), filters, { limit, offset }));
+      const ine = routeParam(req, "ine");
+      res.json(await gated(() => listBuildings(pool, ine, filters, { limit, offset })));
     }),
   );
 
@@ -151,7 +214,8 @@ export function createScreeningRouter(pool: Pool): IRouter {
     handle(async (req, res, t) => {
       const ref = routeParam(req, "ref");
       if (!REF.test(ref)) throw new BadParam("ref");
-      const trace = await buildingTrace(pool, routeParam(req, "ine"), ref);
+      const ine = routeParam(req, "ine");
+      const trace = await gated(() => buildingTrace(pool, ine, ref));
       if (!trace) {
         res.status(404).json({ code: "building_not_found", message: t("error.screeningBuildingNotFound", { ref }) });
         return;
@@ -163,7 +227,8 @@ export function createScreeningRouter(pool: Pool): IRouter {
   router.get(
     "/api/screening/:ine/summary",
     handle(async (req, res) => {
-      res.json(await portfolioSummary(pool, routeParam(req, "ine")));
+      const ine = routeParam(req, "ine");
+      res.json(await cached(`summary:${ine}`, () => portfolioSummary(pool, ine)));
     }),
   );
 
@@ -172,7 +237,7 @@ export function createScreeningRouter(pool: Pool): IRouter {
     exportLimiter,
     handle(async (req, res, t) => {
       const ine = routeParam(req, "ine");
-      const { runId, rows } = await exportRows(pool, ine);
+      const { runId, rows } = await gated(() => exportRows(pool, ine));
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", `attachment; filename="cribado-${ine}.csv"`);
       res.setHeader("X-Screening-Run", runId);

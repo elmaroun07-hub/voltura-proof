@@ -98,12 +98,24 @@ async function serve() {
   };
 }
 
+// H-D17: /api/calculate is rate-limited per client (20 per 15 minutes), and this
+// file sends more than that from one process. Each test is its own client, a
+// distinct IPv6 documentation-range address in CF-Connecting-IP - the header the
+// limiter keys on in production - so no test spends another test's allowance.
+let clientSeq = 0;
+let client = "2001:db8:0::1";
+beforeEach(() => {
+  clientSeq += 1;
+  client = `2001:db8:${clientSeq.toString(16)}::1`;
+});
+
 async function calculate(base: string, location: string) {
   const res = await realFetch(`${base}/api/calculate`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "X-Session-Id": "a3a3a3a3-3333-4333-8333-a3a3a3a3a3a3",
+      "CF-Connecting-IP": client,
       // This suite pins the English text, so it asks for English (H2b: Spanish is the default).
       "Accept-Language": "en",
     },
@@ -462,6 +474,7 @@ async function calculateIn(base: string, location: string, acceptLanguage: strin
   const headers: Record<string, string> = {
     "Content-Type": "application/json; charset=utf-8",
     "X-Session-Id": "b2b2b2b2-2222-4222-8222-b2b2b2b2b2b2",
+    "CF-Connecting-IP": client,
   };
   if (acceptLanguage !== null) headers["Accept-Language"] = acceptLanguage;
   const res = await realFetch(`${base}/api/calculate`, {
@@ -517,12 +530,12 @@ describe("H2b — Spanish by default (2b.1), on the calculate route", () => {
   it("answers a missing session header in Spanish, and in English on request", async () => {
     const { base, close } = await serve();
     try {
-      const es = await realFetch(`${base}/api/calculate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const es = await realFetch(`${base}/api/calculate`, { method: "POST", headers: { "Content-Type": "application/json", "CF-Connecting-IP": client }, body: "{}" });
       expect(es.status).toBe(400);
       expect(await es.json()).toEqual({ message: "Falta la cabecera X-Session-Id" });
       const en = await realFetch(`${base}/api/calculate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept-Language": "en" },
+        headers: { "Content-Type": "application/json", "Accept-Language": "en", "CF-Connecting-IP": client },
         body: "{}",
       });
       expect(await en.json()).toEqual({ message: "X-Session-Id header is required" });

@@ -9,6 +9,7 @@ import { createScreeningRouter } from "./screening";
 import { getLlmClient, llmModel } from "../lib/llm";
 import PDFDocument from "pdfkit";
 import rateLimit from "express-rate-limit";
+import { clientKey } from "../lib/client-key";
 import {
   parseOptimizePayload,
   renderOptimizeFacts,
@@ -799,16 +800,33 @@ export function simulate8760(
  * /api/optimize is one of only two routes that spend money on a paid API, and
  * it was open. Conservative on purpose: a single Mistral completion per request,
  * and no legitimate visitor runs the optimizer ten times in a quarter hour.
- * Keyed on IP by the library default - no custom key generator, no store, no
- * bypass list.
+ * Keyed by clientKey (H-D17), which does not depend on Render's unpublished
+ * proxy hop count. No store, no bypass list.
  */
 const optimizeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  keyGenerator: clientKey,
   // Written per request, in the language it asked for (H2b).
   message: (req: { get(name: string): string | undefined }) => ({ message: serverT(requestLocale(req))("error.rateLimited") }),
+});
+
+/**
+ * H-D17 (D17 in the 11 Sept 2026 report): /api/calculate had no limiter while
+ * every request makes one OpenStreetMap geocoder call, one NASA call and one
+ * database insert. A script could fill the database or get this server's
+ * address blocked by the geocoder, which would break every location lookup.
+ * A reader compares a few systems; twenty in a quarter hour is far above that.
+ */
+const calculateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: clientKey,
+  message: (req: { get(name: string): string | undefined }) => ({ message: serverT(requestLocale(req))("error.calcRateLimited") }),
 });
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -1100,7 +1118,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // Main calculation endpoint
-  app.post(api.calculations.create.path, async (req, res) => {
+  app.post(api.calculations.create.path, calculateLimiter, async (req, res) => {
     // H2b: every sentence in this response is written in the language the
     // request asked for; Spanish when it asked for nothing.
     const locale = requestLocale(req);

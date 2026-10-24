@@ -51,11 +51,15 @@ export const serverCatalog = defineCatalog(
       "NASA POWER cubrió {present} de {expected} meses para {parameter} en {years} año(s){missing}. Una media sobre menos años de los solicitados falsearía el periodo.",
     "error.nasaPartialMissing": " (faltan {list})",
     "error.rateLimited": "Demasiadas solicitudes de optimización. Inténtelo de nuevo más tarde.",
+    "error.calcRateLimited": "Demasiados cálculos. Inténtelo de nuevo más tarde.",
     "error.optimizeFailed": "No se ha podido generar la optimización",
     "error.optimizeModel": "El modelo de optimización ha devuelto una respuesta inutilizable. Inténtelo de nuevo.",
     "error.screeningNotLoaded": "No hay un cribado cargado para el municipio {ine}.",
     "error.screeningBadParam": "Valor no válido en «{param}».",
     "error.screeningBuildingNotFound": "El edificio {ref} no está en el cribado de este municipio.",
+    // H-D17B: the screening routes' limit and their busy answer.
+    "error.screeningRateLimited": "Demasiadas solicitudes de cribado. Inténtelo de nuevo en un minuto.",
+    "error.screeningBusy": "El cribado está atendiendo muchas solicitudes. Inténtelo de nuevo en unos segundos.",
     "csv.rank": "Orden",
     "csv.ref": "Referencia catastral",
     "csv.dwellings": "Viviendas",
@@ -156,10 +160,17 @@ export const serverCatalog = defineCatalog(
     "chat.deleteFailed": "No se ha podido eliminar la conversación",
     "chat.sendFailed": "No se ha podido enviar el mensaje",
     "chat.rateLimited": "Demasiados mensajes. Inténtelo de nuevo más tarde.",
+    // H-D17: the new limiter and the two body checks.
+    "chat.createRateLimited": "Demasiadas conversaciones nuevas. Inténtelo de nuevo más tarde.",
+    "chat.titleInvalid": "El título debe ser un texto de {max} caracteres como máximo.",
+    "chat.contentInvalid": "El mensaje debe ser un texto de entre 1 y {max} caracteres.",
     "chat.defaultTitle": "Nueva conversación",
     // H-ASST-ACC3 (operator ruling, 8 Oct 2026): the one answer to any question
     // outside Voltura's jobs. The system prompt quotes it from here.
     "chat.outOfScope": "No puedo responder a eso. Solo respondo preguntas sobre lo que hace Voltura.",
+    // H-ASST-ACC5 (operator ruling, 23 Oct 2026): the one answer to whether
+    // Voltura meets a law, regulation or standard. The system prompt quotes it.
+    "chat.lawAnswer": "Voltura no hace ninguna afirmación sobre si se ajusta o no a alguna ley, reglamento o norma.",
 
     // ── Units ─────────────────────────────────────────────────────────────
     "unit.kwh": "{n} kWh",
@@ -188,11 +199,14 @@ export const serverCatalog = defineCatalog(
       "NASA POWER covered {present} of {expected} months for {parameter} over {years} year(s){missing}. A mean over fewer years than requested would misstate the period.",
     "error.nasaPartialMissing": " (missing {list})",
     "error.rateLimited": "Too many optimization requests. Please try again later.",
+    "error.calcRateLimited": "Too many calculations. Please try again later.",
     "error.optimizeFailed": "Failed to generate optimization",
     "error.optimizeModel": "The optimization model returned an unusable response. Please try again.",
     "error.screeningNotLoaded": "No screening is loaded for municipality {ine}.",
     "error.screeningBadParam": "Invalid value for “{param}”.",
     "error.screeningBuildingNotFound": "Building {ref} is not in this municipality's screening.",
+    "error.screeningRateLimited": "Too many screening requests. Please try again in a minute.",
+    "error.screeningBusy": "The screening is handling many requests. Please try again in a few seconds.",
     "csv.rank": "Rank",
     "csv.ref": "Cadastral reference",
     "csv.dwellings": "Dwellings",
@@ -289,8 +303,12 @@ export const serverCatalog = defineCatalog(
     "chat.deleteFailed": "Failed to delete conversation",
     "chat.sendFailed": "Failed to send message",
     "chat.rateLimited": "Too many messages. Please try again later.",
+    "chat.createRateLimited": "Too many new conversations. Please try again later.",
+    "chat.titleInvalid": "The title must be text of at most {max} characters.",
+    "chat.contentInvalid": "The message must be text of 1 to {max} characters.",
     "chat.defaultTitle": "New Chat",
     "chat.outOfScope": "I can't answer that. I only answer questions about what Voltura does.",
+    "chat.lawAnswer": "Voltura makes no claim about whether it meets any law, regulation or standard.",
 
     "unit.kwh": "{n} kWh",
     "unit.w": "{n} W",

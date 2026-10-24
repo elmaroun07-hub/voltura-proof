@@ -1,8 +1,8 @@
 # voltura-proof
 
-These are three test suites copied byte-for-byte from Voltura's private production repo at commit `a15dd1d` (production since 21 Oct 2026), with the code they run. The full repo is private.
+These are three test suites copied byte-for-byte from Voltura's private production repo at commit `1a04df3` (production since 24 Oct 2026), with the code they run. The full repo is private. The first copy (22 Oct 2026, commit `a15dd1d`) is in this repo's history.
 
-The 57 code and data files are byte-identical to `a15dd1d`. The config files (`package.json`, `tsconfig.json`, `tsconfig.base.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.gitignore`, `.gitattributes`) were written for this repo. Comments in five files refer to documents in the private repo (`contracts/…`); those documents are not included.
+The 58 code and data files are byte-identical to `1a04df3`. The config files (`package.json`, `tsconfig.json`, `tsconfig.base.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `.gitignore`, `.gitattributes`) were written for this repo. Comments in five files refer to documents in the private repo (`contracts/…`); those documents are not included.
 
 ## Run
 

@@ -60,7 +60,9 @@ export const insertCalculationSchema = createInsertSchema(calculations).omit({
 });
 
 export const calculationInputSchema = z.object({
-  location: z.string().min(2, "Please enter a valid location"),
+  // H-D17: capped. Unbounded, it went into the geocoder URL and the database row
+  // at whatever length the body carried.
+  location: z.string().min(2, "Please enter a valid location").max(200, "Please enter a valid location"),
   energyUsage: z.number().min(100).max(100000),
   pvWattage: z.number().min(100).max(100000),
   batteryCapacity: z.number().min(0).max(200),
